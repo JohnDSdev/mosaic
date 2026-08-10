@@ -1,0 +1,48 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'buildsrc/**'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Reconstruct source project
+        run: |
+          cat buildsrc/mosaic-source.b64.* | base64 --decode > /tmp/mosaic-source.zip
+          mkdir -p /tmp/mosaic-src
+          unzip -q /tmp/mosaic-source.zip -d /tmp/mosaic-src
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android 35 SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build installable debug APK
+        working-directory: /tmp/mosaic-src/mosaic-notes
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Copy APK
+        run: cp /tmp/mosaic-src/mosaic-notes/app/build/outputs/apk/debug/app-debug.apk ./Mosaic-Notes.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mosaic-notes-apk
+          path: Mosaic-Notes.apk
+          if-no-files-found: error
