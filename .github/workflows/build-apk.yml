@@ -22,16 +22,21 @@ jobs:
       - name: Reconstruct source project
         run: |
           cat buildsrc/mosaic-source.b64.* | base64 --decode > /tmp/mosaic-source.zip
+          rm -rf /tmp/mosaic-src
           mkdir -p /tmp/mosaic-src
           unzip -q /tmp/mosaic-source.zip -d /tmp/mosaic-src
 
-      - name: Install v1.0.4 app source
+      - name: Apply Mosaic v1.0.4 UI and editor fixes
         run: |
-          base64 --decode payload/mosaic-v104.html.gz.b64 | gzip -d > /tmp/mosaic-src/mosaic-notes/app/src/main/assets/index.html
-          cp /tmp/mosaic-src/mosaic-notes/app/src/main/assets/index.html /tmp/mosaic-src/mosaic-notes/index.html
+          HTML=/tmp/mosaic-src/mosaic-notes/app/src/main/assets/index.html
+          python3 payload/prepatch-v103.py "$HTML"
+          python3 payload/patch-v104.py "$HTML"
+          cp "$HTML" /tmp/mosaic-src/mosaic-notes/index.html
+
+      - name: Configure Android rotation and keyboard behavior
+        run: |
           python3 - <<'PY'
           from pathlib import Path
-
           root = Path('/tmp/mosaic-src/mosaic-notes')
 
           manifest = root / 'app/src/main/AndroidManifest.xml'
@@ -59,6 +64,22 @@ jobs:
           gs = gradle.read_text().replace('versionCode = 1', 'versionCode = 5').replace('versionName = "1.0.0"', 'versionName = "1.0.4"')
           gradle.write_text(gs)
           PY
+
+      - name: Verify web source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('/tmp/mosaic-src/mosaic-notes/index.html')
+          s=p.read_text()
+          needed=['wordCount','spellToggle','animToggle','handleEditorKeydown','mosaic_notes_last_view_v1','--keyboard-inset','todo-text']
+          missing=[x for x in needed if x not in s]
+          if missing: raise SystemExit('Missing expected features: '+', '.join(missing))
+          m=re.search(r'<script>(.*?)</script>',s,re.S)
+          if not m: raise SystemExit('Script block missing')
+          Path('/tmp/mosaic-v104.js').write_text(m.group(1))
+          PY
+          node --check /tmp/mosaic-v104.js
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
