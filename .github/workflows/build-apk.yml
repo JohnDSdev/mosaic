@@ -8,6 +8,7 @@ on:
       - 'incoming/latest-html.part*'
       - 'payload/MainActivity-v105.java'
       - 'payload/patch-android-v106.py'
+      - 'payload/patch-android-v111-hide-scrollbars.py'
       - 'buildsrc/**'
       - '.github/workflows/build-apk.yml'
 
@@ -40,6 +41,7 @@ jobs:
         run: |
           cp payload/MainActivity-v105.java /tmp/mosaic-src/mosaic-notes/app/src/main/java/com/mosaicnotes/app/MainActivity.java
           python3 payload/patch-android-v106.py
+          python3 payload/patch-android-v111-hide-scrollbars.py
           python3 - <<'PY'
           from pathlib import Path
           root = Path('/tmp/mosaic-src/mosaic-notes')
@@ -52,7 +54,7 @@ jobs:
           )
           manifest.write_text(ms)
           gradle = root / 'app/build.gradle.kts'
-          gs = gradle.read_text().replace('versionCode = 1', 'versionCode = 11').replace('versionName = "1.0.0"', 'versionName = "1.0.10"')
+          gs = gradle.read_text().replace('versionCode = 1', 'versionCode = 12').replace('versionName = "1.0.0"', 'versionName = "1.0.11"')
           gradle.write_text(gs)
           PY
 
@@ -71,7 +73,7 @@ jobs:
           if not m: raise SystemExit('Script block missing')
           Path('/tmp/mosaic-latest.js').write_text(m.group(1))
           java=Path('/tmp/mosaic-src/mosaic-notes/app/src/main/java/com/mosaicnotes/app/MainActivity.java').read_text()
-          for token in ['checkSpelling','SpellCheckerSession','setDecorFitsSystemWindows','WindowInsets.Type.ime','SOFT_INPUT_ADJUST_NOTHING','OVER_SCROLL_NEVER']:
+          for token in ['checkSpelling','SpellCheckerSession','setDecorFitsSystemWindows','WindowInsets.Type.ime','SOFT_INPUT_ADJUST_NOTHING','OVER_SCROLL_NEVER','setVerticalScrollBarEnabled(false)','setHorizontalScrollBarEnabled(false)','mosaic-android-hide-scrollbars']:
               if token not in java: raise SystemExit('Android shell missing '+token)
           PY
           node --check /tmp/mosaic-latest.js
@@ -99,15 +101,15 @@ jobs:
 
       - name: Collect artifact
         run: |
-          cp /tmp/mosaic-src/mosaic-notes/app/build/outputs/apk/debug/app-debug.apk ./Mosaic-Notes-v1.0.10.apk
-          cp /tmp/mosaic-src/mosaic-notes/index.html ./Mosaic-Notes-v1.0.10.html
-          sha256sum Mosaic-Notes-v1.0.10.apk Mosaic-Notes-v1.0.10.html
+          cp /tmp/mosaic-src/mosaic-notes/app/build/outputs/apk/debug/app-debug.apk ./Mosaic-Notes-v1.0.11.apk
+          cp /tmp/mosaic-src/mosaic-notes/index.html ./Mosaic-Notes-v1.0.11.html
+          sha256sum Mosaic-Notes-v1.0.11.apk Mosaic-Notes-v1.0.11.html
 
       - name: Upload APK and HTML
         uses: actions/upload-artifact@v4
         with:
-          name: mosaic-notes-v1.0.10
+          name: mosaic-notes-v1.0.11
           path: |
-            Mosaic-Notes-v1.0.10.apk
-            Mosaic-Notes-v1.0.10.html
+            Mosaic-Notes-v1.0.11.apk
+            Mosaic-Notes-v1.0.11.html
           if-no-files-found: error
